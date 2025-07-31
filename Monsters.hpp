@@ -1,19 +1,29 @@
 #include <utility>
 #include <random>
 #include <math.h>
+#include <iostream>
+#include <ctime>
 
 using namespace std;
 
-double PI = 3.1415926535;
-
 pair<int,int> SpawnMonster(int w1, int w2, int h1, int h2) {
     random_device w;
-    default_random_engine engine_w(w());
+    default_random_engine gen_w(w());
     uniform_int_distribution<int32_t> widths(w1, w2);
     random_device h;
-    default_random_engine engine_h(h());
+    default_random_engine gen_h(h());
     uniform_int_distribution<int32_t> heights(h1,h2);
-    return make_pair(widths(engine_w), heights(engine_h));
+    return make_pair(widths(gen_w), heights(gen_h));
+}
+
+pair<float,float> Generate_Direction(float x1, float x2, float y1, float y2) {
+    random_device x;
+    mt19937 gen_x(x());
+    uniform_real_distribution<> dis_x(x1, x2);
+    random_device y;
+    mt19937 gen_y(y());
+    uniform_real_distribution<> dis_y(y1, y2);
+    return make_pair(dis_x(gen_x), dis_y(gen_y));
 }
 
 class Monster {
@@ -39,57 +49,58 @@ public:
     sf::CircleShape shape;
     bool spawn = true;
     int id;
+    int random_dir = 1;
+    int dir_trigger = 3;
+    bool repeat_dir = false;
 
-    /*bool CanMove(float dx, float dy, Monster& m, vector<Monster>& vm) {
-    for (int p = 0; p < m.shape.getPointCount(); ++p) {
-        pair<float,float> dm = make_pair(m.shape.getPoint(p).x+dx+m.x_pos, m.shape.getPoint(p).y+dy+m.y_pos);
-        for (int i = 0; i < vm.size(); ++i) {
-            pair<float,float> rel = make_pair(abs(dm.first - vm[i].x_pos), abs(dm.second - vm[i].y_pos)); // relative position to monster center
-            if (m.id != vm[i].id && rel.first*rel.first + rel.second*rel.second <= vm[i].size*vm[i].size) {
-                return false;
-            }
+    void Deal_Damage(Player& p) {
+        float dx = abs(p.x_pos - x_pos);
+        float dy = abs(p.y_pos - y_pos);
+        float t = p.immortality_clock.getElapsedTime().asSeconds();
+        if (dx <= p.size && dy <= p.size && p.hp > 0 && t >= 0.5) {
+            p.hp -= damage;
+            p.immortality_clock.restart();
         }
     }
-    return true;
-}*/
 
-
-    sf::CircleShape Move(Player& p, vector<Monster>& vm) { // complexity: vm^2*100 ... vm < 1000?
+    void Move(Player& p, vector<Monster>& vm) { // complexity: vm^2*100 ... vm < 1000? - wrong :)
         double x = abs(p.x_pos - x_pos);
         double y = abs(p.y_pos - y_pos);
         double alpha = atan(y/x);
         double beta = atan(x/y);
         double dx = speed*sin(beta);
         double dy = speed*sin(alpha);
-        for (int d = 0; d < 90; ++d) {
-            double alpha1 = (180*alpha/PI) - d;
-            double beta1 = (180*beta/PI) + d;
-            double alpha2 = (180*alpha/PI) + d;
-            double beta2 = (180*beta/PI) - d;
-            double dx1 = speed*sin(beta1/180*PI);
-            double dx2 = speed*sin(beta2/180*PI);
-            double dy1 = speed*sin(alpha1/180*PI);
-            double dy2 = speed*sin(alpha2/180*PI);
-            //for (int i = vm.size(); ++i) {
-                //pair<float,float>
-            //}
+        if (random_dir == dir_trigger) {
+            random_dir = 1;
+            if (repeat_dir) {
+                random_dir = dir_trigger - 1;
+                repeat_dir = false;
+            }
+            else {
+                repeat_dir = true;
+            }
+            pair<float,float> directions = Generate_Direction(-speed, speed, -speed, speed);
+            x_pos += directions.first;
+            y_pos += directions.second;
         }
-        sf::CircleShape dir(size/5, 10);
-        dir.setFillColor(sf::Color::Cyan);
-        dir.setPosition(sf::Vector2f(x_pos + size - (size/5), y_pos + size - (size/5) ));
-        if (p.x_pos <= x_pos && p.y_pos >= y_pos) { // bottom left
-            dir.setPosition(dir.getPosition().x - dx, dir.getPosition().y + dy);
+        else if (p.x_pos <= x_pos && p.y_pos >= y_pos) { // player is bottom left
+            x_pos -= dx;
+            y_pos += dy;    
         }
-        else if (p.x_pos <= x_pos && p.y_pos <= y_pos) { // top left
-            dir.setPosition(dir.getPosition().x - dx, dir.getPosition().y - dy);
+        else if (p.x_pos <= x_pos && p.y_pos <= y_pos) { // player is top left
+            x_pos -= dx;
+            y_pos -= dy; 
         }
-        else if (p.x_pos >= x_pos && p.y_pos <= y_pos) { // top right
-            dir.setPosition(dir.getPosition().x + dx, dir.getPosition().y - dy);
+        else if (p.x_pos >= x_pos && p.y_pos <= y_pos) { // player is top right
+            x_pos += dx;
+            y_pos -= dy; 
         }
-        else { // bottom right
-            dir.setPosition(dir.getPosition().x + dx, dir.getPosition().y + dy);
+        else { // player is bottom right
+            x_pos += dx;
+            y_pos += dy; 
         }
-        return dir;
+        shape.setPosition(x_pos, y_pos);
+        random_dir++;
     }
 };
 

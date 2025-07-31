@@ -10,12 +10,13 @@ class AntiGayEnergy;
 
 class Player {
 public:
-    Player(float x_cord, float y_cord, float p_size, Weapon* starting_weapon) {
+    Player(float x_cord, float y_cord, float p_size, Weapon* starting_weapon){
         x_pos = x_cord;
         y_pos = y_cord;
         size = p_size;
         pick_up_range = 2*p_size;
         weapons.push_back(starting_weapon);
+        immortality_clock.restart();
     }
     float x_pos;
     float y_pos;
@@ -27,6 +28,14 @@ public:
     int level = 1;
     float pick_up_range;
     vector<Weapon*> weapons;
+    sf::Clock immortality_clock;
+
+    void Update_HP(sf::RectangleShape& curr_hp, sf::RectangleShape& missing_hp) {
+        curr_hp.setSize(sf::Vector2f(hp / max_hp*2*size, size/3));
+        missing_hp.setSize(sf::Vector2f((1.f - hp/max_hp)*2*size, size/3));
+        curr_hp.setPosition(x_pos, y_pos + 13*size/5);
+        missing_hp.setPosition(curr_hp.getPosition().x + curr_hp.getSize().x, curr_hp.getPosition().y); 
+    }
 };
 
 #endif
