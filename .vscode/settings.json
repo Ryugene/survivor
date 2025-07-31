@@ -1,0 +1,31 @@
+{
+    "files.associations": {
+        "atomic": "cpp",
+        "ios": "cpp",
+        "xiosbase": "cpp",
+        "vector": "cpp",
+        "utility": "cpp",
+        "string": "cpp",
+        "memory": "cpp",
+        "thread": "cpp",
+        "xlocale": "cpp",
+        "array": "cpp",
+        "bitset": "cpp",
+        "deque": "cpp",
+        "initializer_list": "cpp",
+        "list": "cpp",
+        "queue": "cpp",
+        "random": "cpp",
+        "ranges": "cpp",
+        "regex": "cpp",
+        "span": "cpp",
+        "stack": "cpp",
+        "valarray": "cpp",
+        "xhash": "cpp",
+        "xstring": "cpp",
+        "xtree": "cpp",
+        "xutility": "cpp",
+        "cstdlib": "cpp",
+        "cmath": "cpp"
+    }
+}
