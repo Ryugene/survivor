@@ -4,6 +4,7 @@
 #include <iostream>
 #include <ctime>
 
+
 using namespace std;
 
 pair<int,int> SpawnMonster(int w1, int w2, int h1, int h2) {
@@ -63,7 +64,7 @@ public:
         }
     }
 
-    void Move(Player& p, vector<Monster>& vm) {
+    void Move(Player& p, vector<Monster*>& vm) {
         double x = abs(p.x_pos - x_pos);
         double y = abs(p.y_pos - y_pos);
         if (x == 0)
