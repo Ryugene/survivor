@@ -63,9 +63,13 @@ public:
         }
     }
 
-    void Move(Player& p, vector<Monster>& vm) { // complexity: vm^2*100 ... vm < 1000? - wrong :)
+    void Move(Player& p, vector<Monster>& vm) {
         double x = abs(p.x_pos - x_pos);
         double y = abs(p.y_pos - y_pos);
+        if (x == 0)
+            x += 0.0000001;
+        if (y == 0)
+            y += 0.0000001;
         double alpha = atan(y/x);
         double beta = atan(x/y);
         double dx = speed*sin(beta);
