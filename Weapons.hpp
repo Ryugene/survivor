@@ -23,8 +23,8 @@ public:
     string name;
     int level;
     sf::Clock clock;
-    virtual void Fire(vector<Monster*>& vm, Player& p) {}
-    virtual sf::CircleShape Display(Player& p) {}
+    virtual void Fire(vector<Monster*>& vm, Player& p) = 0;
+    virtual sf::CircleShape Display(Player& p) = 0;
 };
 
 class AntiGayEnergy : public Weapon {
