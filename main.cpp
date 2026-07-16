@@ -1,3 +1,4 @@
+#pragma once
 #include <SFML/Graphics.hpp>
 #include <memory>
 #include "Player.hpp"
@@ -5,54 +6,32 @@
 #include "Weapons.hpp"
 #include <iostream>
 #include "menu.hpp"
+#include "resource.hpp"
+#include "DataStructures.hpp"
+#include "Grid.hpp"
 
 using namespace std;
 
-int max_monsters = 100;
-
-bool CanSpawn(vector<Monster>& vm, float x, float y) {
-    for (auto& m : vm) {
-        if (abs(m.x_pos-x)*abs(m.x_pos-x) + abs(m.y_pos-y)*abs(m.y_pos-y) <= m.size*m.size)
-            return false;
-    }
-    return true;
-}
-
-int SetID(vector<Monster*>& vm) {
-    int curr = 0;
-    for (int i = 0; i < vm.size(); ++i) {
-        curr = max(vm[i]->id, curr);
-    }
-    return curr+1;
-}
-
-void Clear_Arena(vector<Monster*>& vm, Player& p, sf::RectangleShape& arena) {
-    for (auto& m : vm) {
-        delete m;
-    }
-    vm.clear();
-    for (auto& w : p.weapons) {
-        delete w;
+// deletes monsters, weapons, sets start weapon, resets player stats to default
+void Clear_Arena(SparseMonsterSet& MSet, Player& p, sf::RectangleShape& arena) {
+    for (auto& m : MSet) {
+        MSet.erase((*m).id, available_monster_ids);
     }
     p.weapons.clear();
-    AntiGayEnergy* s_w = new AntiGayEnergy();
-    p.weapons.push_back(s_w);
+    auto s_w = make_unique<AntiGayEnergy>();
+    p.weapons.push_back(move(s_w));
     p.Reset(arena.getSize().x/2 + p.size, arena.getSize().y/2 + p.size);
 }
 
 int main()
 {
-    auto w_width = sf::VideoMode::getDesktopMode().width;
-    auto w_height = sf::VideoMode::getDesktopMode().height;
-    float p_size = (w_width + w_height) / 200;
-    AntiGayEnergy* s_w = new AntiGayEnergy();
-
-    sf::RenderWindow window(sf::VideoMode(w_width, w_height), "LGBT survivor",sf::Style::Fullscreen);
-    sf::RectangleShape arena(sf::Vector2f(3*w_width ,3*w_height));
-
-    Player player(arena.getSize().x/2 + p_size, arena.getSize().y/2 + p_size, p_size, s_w);
+    double p_size = (w_width + w_height) / 200;
+    const double player_start_x = arena_width/2 + p_size;
+    const double player_start_y = arena_height/2 + p_size;
+    auto s_w = make_unique<AntiGayEnergy>();
+    Player player(player_start_x, player_start_y, p_size, move(s_w));
     sf::View view(sf::FloatRect(0,0, w_width,w_height));
-    sf::CircleShape player_shape(p_size,500);
+    sf::CircleShape player_shape(p_size,250);
     sf::RectangleShape curr_hp(sf::Vector2f(player.hp / player.max_hp*2*p_size, p_size/3));
     sf::RectangleShape missing_hp(sf::Vector2f((1.f - player.hp/player.max_hp)*2*p_size, p_size/3));
     arena.setFillColor(sf::Color::White);
@@ -61,7 +40,7 @@ int main()
     curr_hp.setFillColor(sf::Color::Red);
     missing_hp.setFillColor(sf::Color::Black);
     
-    vector<Monster*> monsters;
+    SparseMonsterSet monsters(max_monsters);
     sf::Clock spawn_clock;
 
     // DEATH TEXT //
@@ -74,46 +53,46 @@ int main()
     death_text.setFillColor(sf::Color::Magenta);
     // DEATH TEXT //
 
+    Create_Available_MonsterIDs(available_monster_ids);
+    Create_Grid_Maps();
+
     bool menu_opened = true;
-    bool died = false;
 
     while (window.isOpen()) {
         // MENU //
         if (menu_opened) {
             window.clear();
-            if (died) {
+            if (player.dead) {
                 sf::FloatRect bounds = death_text.getLocalBounds();
                 death_text.setPosition(w_width/2 - bounds.width/2, 0);
                 window.draw(death_text);
             }
-            Display_Menu(died, menu_opened, window);
+            Display_Menu(player.dead, menu_opened, window);
             continue;
         }
         // MENU //
+        // GAME STARTS //
         view.setCenter(player.x_pos, player.y_pos);
         window.setView(view);
         window.clear();
-        sf::Time time = spawn_clock.getElapsedTime();
-        float t = time.asSeconds();
-        if (t >= 0.01 && monsters.size() < max_monsters) {
-            Monster* m = new Monster(int(arena.getPosition().x) + 1, int(arena.getSize().x + arena.getPosition().x) - 2*p_size, int(arena.getPosition().y) + 1, int(arena.getSize().y + arena.getPosition().y) - 2*p_size,
-            5.f, 5.f, 2, 50, SetID(monsters));
-            while (abs (m->x_pos - player.x_pos) <= w_width || abs(m->y_pos - player.y_pos) <= w_height) {
-                pair<int,int> cord_p = SpawnMonster(int(arena.getPosition().x) + 1, int(arena.getSize().x + arena.getPosition().x) - 2*p_size, int(arena.getPosition().y) + 1, int(arena.getSize().y + arena.getPosition().y) - 2*p_size);
-                while(!CanSpawn)
-                    cord_p = SpawnMonster(int(arena.getPosition().x) + 1, int(arena.getSize().x + arena.getPosition().x) - 2*p_size, int(arena.getPosition().y) + 1, int(arena.getSize().y + arena.getPosition().y) - 2*p_size);
-                m->x_pos = cord_p.first;
-                m->y_pos = cord_p.second;
-            }
-            sf::CircleShape m_shape(p_size,52);
-            m_shape.setFillColor(sf::Color::Red);
-            m_shape.setPosition(m->x_pos,m->y_pos);
-            m->shape = m_shape;
-            m->size = m_shape.getRadius();
-            monsters.push_back(m);
+        sf::Time spawn_clock_time = spawn_clock.getElapsedTime();
+        double spawn_time = static_cast<double>(spawn_clock_time.asSeconds());
+        double spawn_rate = 0.01;
+
+        // MONSTER SPAWN //
+        if (spawn_time >= spawn_rate && monsters.size() < max_monsters) { //one monster per spawn_rate seconds
+            double m_xp = 5;
+            double m_hp = 5;
+            double m_speed = player.speed/2;
+            double m_damage = 11;
+            auto m = make_unique<Type1>(grid_keys, monster_ground_free_map, player, m_xp, m_hp, m_speed, m_damage);
+            // Monsters spawn in safe distance from player
+            // Monsters are assigned one block from the grid
+            m->SpawnMonster(grid_keys, monster_ground_free_map, player);
+            monsters.insert(move(m));
             spawn_clock.restart();
         }
-    
+        // MONSTER SPAWN //
 
         sf::Event event;
         while (window.pollEvent(event)) {
@@ -123,13 +102,13 @@ int main()
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::A) && player.x_pos >= arena.getPosition().x + player.speed) {
             player.x_pos -= player.speed;
         }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::D) && player.x_pos <= arena.getPosition().x + arena.getSize().x - 2*player.size - player.speed) {
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::D) && player.x_pos <= arena.getPosition().x + arena_width - 2*player.size - player.speed) {
             player.x_pos += player.speed;
         }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::W) && player.y_pos >= arena.getPosition().y + player.speed) {
             player.y_pos -= player.speed;
         }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::S) && player.y_pos <= arena.getPosition().y + arena.getSize().y - 2*player.size - player.speed) {
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::S) && player.y_pos <= arena.getPosition().y + arena_height - 2*player.size - player.speed) {
             player.y_pos += player.speed;
         }
 
@@ -138,32 +117,36 @@ int main()
         
         window.draw(arena);
         for (auto& weapon : player.weapons) {
-            //weapon->Fire(monsters, player);
+            weapon->Fire(monsters, player);
             window.draw(weapon->Display(player));
         }
         window.draw(player.shape);
         window.draw(curr_hp);
         window.draw(missing_hp);
-        for (auto m = monsters.begin(); m != monsters.end();) {
-            (*m)->Deal_Damage(player);
+        //Draw_Map();
+        int m_i = 0;
+        while (m_i < monsters.size()) {
+            Monster* m = monsters[m_i].get();
+            m->Deal_Damage(player);
             if (player.hp <= 0) {
-                died = true;
+                player.dead = true;
                 menu_opened = true;
                 view.setCenter(w_width/2,w_height/2);
                 window.setView(view);
                 Clear_Arena(monsters, player, arena);
                 break;
             }
-            else if ((*m)->hp <= 0) {
-                delete *m;
-                m = monsters.erase(m);
+            else if (m->hp <= 0) {
+                monsters.erase(m->id, available_monster_ids);
             }
             else {
-                window.draw((*m)->shape);
-                (*m)->Move(player, monsters);
-                ++m;
+                window.draw(m->shape);
+                m->ChooseDestination(player);
+                ++m_i;
             }
         }
+        
+        //Draw_Grid(arena, window);
         window.display();
     }
     return 0;
